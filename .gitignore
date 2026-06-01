@@ -1,0 +1,20 @@
+# 敏感凭证 — 绝对不能上传
+config.json
+coros_creds.json
+.token_cache
+.coros_token/
+
+# 大二进制文件
+ngrok.exe
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# IDE
+.vscode/
+.idea/
+
+# 临时文件
+*.log
+*.tmp
