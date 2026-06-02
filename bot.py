@@ -13,6 +13,10 @@ import requests
 from pathlib import Path
 from datetime import datetime
 from flask import Flask, request, jsonify
+import openpyxl
+from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+from openpyxl.utils import get_column_letter
+import shutil
 
 # ── 加载配置 ──────────────────────────────────────────────────
 BASE_DIR = Path(__file__).parent
@@ -163,6 +167,9 @@ def sport_name(st):
 WORK_DIR = Path("D:/feishu-tasks")
 WORK_DIR.mkdir(parents=True, exist_ok=True)
 
+DAILY_REPORT_DIR = Path("E:/于跃龙/每日工作计划/2026")
+DAILY_REPORT_TEMPLATE = DAILY_REPORT_DIR / "2026.6.1宏名公司员工每日工作总结计划表.xlsx"
+
 
 def cmd_help():
     return (
@@ -174,6 +181,7 @@ def cmd_help():
         "/文件 — 列出已下载/生成的文件\n"
         "/状态 — 查看电脑运行状态\n"
         "/删除 [文件名] — 删除指定文件\n"
+        "/日报 [任务 - 状态; ...] — 生成每日工作日报表格（WPS）\n"
         "/coros帮助 — ⌚ Coros 运动数据功能"
     )
 
@@ -192,6 +200,58 @@ def cmd_plan(content):
     )
     filepath.write_text(plan_text, encoding="utf-8")
     return f"✅ 计划已生成：`{filename}`"
+
+
+def cmd_daily_report(args_str):
+    """生成每日工作日报表格 — 复制模板并填入内容"""
+    # 解析：任务1 - 状态1; 任务2 - 状态2（支持中英文分号）
+    tasks = []
+    args_str = args_str.replace("；", ";")
+    for part in args_str.split(";"):
+        part = part.strip()
+        if not part:
+            continue
+        if " - " in part:
+            content, status = part.split(" - ", 1)
+            tasks.append((content.strip(), status.strip()))
+        else:
+            tasks.append((part.strip(), "待完成"))
+
+    if not tasks:
+        return "❌ 请至少输入一条任务\n格式：/日报 任务内容 - 完成状态"
+
+    tasks = tasks[:3]  # 最多3条（C5-C7）
+
+    today = datetime.now()
+    date_str = f"{today.year}.{today.month}.{today.day}"
+    filename = f"{date_str}宏名公司员工每日工作总结计划表.xlsx"
+    filepath = DAILY_REPORT_DIR / filename
+
+    # 复制模板
+    if not DAILY_REPORT_TEMPLATE.exists():
+        return f"❌ 模板文件不存在：{DAILY_REPORT_TEMPLATE}"
+    shutil.copy(str(DAILY_REPORT_TEMPLATE), str(filepath))
+
+    # 编辑
+    wb = openpyxl.load_workbook(str(filepath))
+    ws = wb.active
+
+    # 更新 A2 日期
+    ws["A2"] = f"日期：{date_str}  岗位：  姓名：于跃龙"
+
+    # 填入任务 C5-C7 / D5-D7
+    for i, (content, status) in enumerate(tasks):
+        row = 5 + i
+        ws[f"C{row}"] = content
+        ws[f"D{row}"] = status
+
+    wb.save(str(filepath))
+
+    return (
+        f"✅ 日报已生成：{filename}\n"
+        f"📋 共 {len(tasks)} 条任务\n"
+        f"📁 E:\\于跃龙\\每日工作计划\\2026\\"
+    )
 
 
 def cmd_download(url, filename=None):
@@ -447,6 +507,9 @@ def dispatch(text):
 
     if cmd in ("计划", "plan"):
         return cmd_plan(args_str)
+
+    if cmd in ("日报",):
+        return cmd_daily_report(args_str)
 
     if cmd in ("处理", "process"):
         args = args_str.split()
