@@ -26,6 +26,7 @@ with open(BASE_DIR / "config.json", encoding="utf-8") as f:
 APP_ID = CONFIG["app_id"]
 APP_SECRET = CONFIG["app_secret"]
 PORT = CONFIG["port"]
+AMAP_KEY = CONFIG["amap_key"]
 
 # ── 飞书 API 辅助 ──────────────────────────────────────────────
 
@@ -183,6 +184,7 @@ def cmd_help():
         "/删除 [文件名] — 删除指定文件\n"
         "/日报 [任务 - 状态; ...] — 生成每日工作日报表格（WPS）\n"
         "/关机 /重启 /取消关机 — 远程关机/重启电脑\n"
+        "/天气 [城市] — 查询城市天气（高德API）\n"
         "/coros帮助 — ⌚ Coros 运动数据功能"
     )
 
@@ -275,6 +277,37 @@ def cmd_cancel_shutdown():
     """取消定时关机/重启"""
     subprocess.run(["shutdown", "/a"], capture_output=True)
     return "✅ 已取消关机/重启"
+
+
+def cmd_weather(city):
+    """查询城市天气（高德API）"""
+    if not city:
+        return "❌ 请输入城市名
+格式：/天气 北京"
+    resp = requests.get(
+        "https://restapi.amap.com/v3/weather/weatherInfo",
+        params={"key": AMAP_KEY, "city": city, "extensions": "base"},
+        timeout=10,
+    ).json()
+    if resp.get("status") != "1":
+        return f"❌ 查询失败：{resp.get('info', '未知错误')}"
+    lives = resp.get("lives", [])
+    if not lives:
+        return f"❌ 未找到城市「{city}」"
+    w = lives[0]
+    return (
+        f"🌤 **{w['city']}** 天气
+"
+        f"🌡 气温：{w['temperature']}°C
+"
+        f"💧 湿度：{w['humidity']}%
+"
+        f"🌬 风向：{w['winddirection']} {w['windpower']}级
+"
+        f"☁️ 天气：{w['weather']}
+"
+        f"🕐 {w['reporttime']}"
+    )
 
 
 def cmd_download(url, filename=None):
@@ -533,6 +566,9 @@ def dispatch(text):
 
     if cmd in ("日报",):
         return cmd_daily_report(args_str)
+
+    if cmd in ("天气", "weather"):
+        return cmd_weather(args_str)
 
     if cmd in ("关机", "shutdown"):
         return cmd_shutdown()
