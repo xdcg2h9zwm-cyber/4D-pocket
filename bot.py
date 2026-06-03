@@ -182,6 +182,7 @@ def cmd_help():
         "/状态 — 查看电脑运行状态\n"
         "/删除 [文件名] — 删除指定文件\n"
         "/日报 [任务 - 状态; ...] — 生成每日工作日报表格（WPS）\n"
+        "/关机 /重启 /取消关机 — 远程关机/重启电脑\n"
         "/coros帮助 — ⌚ Coros 运动数据功能"
     )
 
@@ -256,6 +257,24 @@ def cmd_daily_report(args_str):
         f"🔗 下载链接：{link}\n"
         f"📁 E:\\于跃龙\\每日工作计划\\2026\\"
     )
+
+
+def cmd_shutdown():
+    """60 秒后关机"""
+    subprocess.run(["shutdown", "/s", "/t", "60"], capture_output=True)
+    return "⏳ 电脑将在 **60 秒** 后关机\n发送 `/取消关机` 可中止"
+
+
+def cmd_restart():
+    """60 秒后重启"""
+    subprocess.run(["shutdown", "/r", "/t", "60"], capture_output=True)
+    return "🔄 电脑将在 **60 秒** 后重启\n发送 `/取消关机` 可中止"
+
+
+def cmd_cancel_shutdown():
+    """取消定时关机/重启"""
+    subprocess.run(["shutdown", "/a"], capture_output=True)
+    return "✅ 已取消关机/重启"
 
 
 def cmd_download(url, filename=None):
@@ -514,6 +533,15 @@ def dispatch(text):
 
     if cmd in ("日报",):
         return cmd_daily_report(args_str)
+
+    if cmd in ("关机", "shutdown"):
+        return cmd_shutdown()
+
+    if cmd in ("重启", "restart"):
+        return cmd_restart()
+
+    if cmd in ("取消关机", "取消重启"):
+        return cmd_cancel_shutdown()
 
     if cmd in ("处理", "process"):
         args = args_str.split()
