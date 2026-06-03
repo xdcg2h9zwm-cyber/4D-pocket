@@ -12,7 +12,7 @@ import hashlib
 import requests
 from pathlib import Path
 from datetime import datetime
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 import openpyxl
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 from openpyxl.utils import get_column_letter
@@ -247,9 +247,13 @@ def cmd_daily_report(args_str):
 
     wb.save(str(filepath))
 
+    public_url = get_public_url()
+    link = f"{public_url}/files/{filename}" if public_url else f"（请重启cpolar获取链接）"
+
     return (
         f"✅ 日报已生成：{filename}\n"
         f"📋 共 {len(tasks)} 条任务\n"
+        f"🔗 下载链接：{link}\n"
         f"📁 E:\\于跃龙\\每日工作计划\\2026\\"
     )
 
@@ -597,6 +601,30 @@ def handle_event():
             send_message(sender_id, result)
 
     return jsonify({"code": 0})
+
+
+@app.route("/files/<path:filename>")
+def serve_file(filename):
+    """提供日报文件下载"""
+    return send_from_directory(str(DAILY_REPORT_DIR), filename, as_attachment=True)
+
+
+def get_public_url():
+    """自动获取 cpolar 公网地址（从日志读取）"""
+    try:
+        log_dir = Path.home() / ".cpolar" / "logs"
+        for log_file in sorted(log_dir.glob("cpolar_service.log*"), reverse=True):
+            text = log_file.read_text(encoding="utf-8", errors="ignore")
+            for line in text.split("\n")[::-1]:
+                if "Tunnel established at https://" in line:
+                    # Extract URL between the last 'https://' and the last quote
+                    start = line.rfind("https://")
+                    end = line.find('"', start)
+                    if start > -1 and end > -1:
+                        return line[start:end]
+        return ""
+    except Exception:
+        return ""
 
 
 def is_encrypted(body):
